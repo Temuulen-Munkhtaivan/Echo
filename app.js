@@ -1,11 +1,29 @@
 const express = require("express");
-require("./database");
 const db = require("./database");
 const bcrypt = require("bcrypt");
 const app = express();
-app.use(express.urlencoded({ extended: false }));
+const session = require("express-session");
+const { randomBytes } = require("node:crypto");
 const PORT = 3000;
 
+app.use(express.urlencoded({ extended: false }));
+// Generate a secret for local development
+const sessionSecret = process.env.ECHO_SESSION_SECRET ||
+    randomBytes(32).toString("hex");
+
+// Configure session management
+app.use(session({
+    name: "echo.sid",
+    secret: sessionSecret,
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+        httpOnly: true,
+        sameSite: "lax",
+        secure: false,
+        maxAge: 30 * 60 * 1000
+    }
+}));
 // Serve HTML and CSS files from the public folder.
 app.use(express.static("public"));
 
@@ -106,12 +124,53 @@ app.post("/login", (req, res) => {
                 return res.status(401).send("Invalid email or password.");
             }
 
-            res.send("Login successful!");
+            // Create a fresh session after successful login
+            req.session.regenerate((err) => {
+                if (err) {
+                    console.error("Session error:", err.message);
+                    return res.status(500).send("Login failed.");
+                }
+
+                // Remember the logged-in user's ID
+                req.session.userId = user.id;
+
+                req.session.save((err) => {
+                    if (err) {
+                        console.error("Session save error:", err.message);
+                        return res.status(500).send("Login failed.");
+                    }
+
+                    res.send("Login successful!");
+                });
+            });
 
         } catch (err) {
             console.error("Password verification error:", err.message);
             res.status(500).send("Login failed.");
         }
+    });
+});
+
+app.get("/me", (req, res) => {
+    if (!req.session.userId) {
+        return res.status(401).send("Please log in.");
+    }
+
+    res.json({
+        loggedIn: true,
+        userId: req.session.userId
+    });
+});
+
+app.post("/logout", (req, res) => {
+    req.session.destroy((err) => {
+        if (err) {
+            console.error("Logout error:", err.message);
+            return res.status(500).send("Logout failed.");
+        }
+
+        res.clearCookie("echo.sid");
+        res.redirect("/login.html");
     });
 });
 
