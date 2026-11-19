@@ -66,6 +66,54 @@ app.post("/register", async (req, res) => {
         res.status(500).send("Registration failed.");
     }
 });
+app.post("/login", (req, res) => {
+    const { email, password } = req.body || {};
+
+    // Validate the submitted information
+    if (
+        typeof email !== "string" ||
+        typeof password !== "string" ||
+        email.length > 254 ||
+        password.length < 12 ||
+        Buffer.byteLength(password, "utf8") > 72
+    ) {
+        return res.status(401).send("Invalid email or password.");
+    }
+
+    const cleanEmail = email.trim().toLowerCase();
+
+    // Find the user in the database
+    const sql = "SELECT * FROM users WHERE email = ?";
+
+    db.get(sql, [cleanEmail], async (err, user) => {
+        if (err) {
+            console.error("Login database error:", err.message);
+            return res.status(500).send("Login failed.");
+        }
+
+        if (!user) {
+            return res.status(401).send("Invalid email or password.");
+        }
+
+        try {
+            // Compare the password with the stored hash
+            const passwordMatches = await bcrypt.compare(
+                password,
+                user.password_hash
+            );
+
+            if (!passwordMatches) {
+                return res.status(401).send("Invalid email or password.");
+            }
+
+            res.send("Login successful!");
+
+        } catch (err) {
+            console.error("Password verification error:", err.message);
+            res.status(500).send("Login failed.");
+        }
+    });
+});
 
 app.listen(PORT, () => {
     console.log(`Echo is running at http://localhost:${PORT}`);
