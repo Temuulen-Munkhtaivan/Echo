@@ -174,6 +174,33 @@ app.post("/logout", (req, res) => {
     });
 });
 
+// Check whether the logged-in user is an administrator
+function requireAdmin(req, res, next) {
+    if (!req.session.userId) {
+        return res.status(401).send("Please log in.");
+    }
+
+    const sql = "SELECT role FROM users WHERE id = ?";
+
+    db.get(sql, [req.session.userId], (err, user) => {
+        if (err) {
+            console.error("Authorization error:", err.message);
+            return res.status(500).send("Unable to verify permissions.");
+        }
+
+        if (!user || user.role !== "admin") {
+            return res.status(403).send("Access denied.");
+        }
+
+        next();
+    });
+}
+
+// Administrator-only route
+app.get("/admin", requireAdmin, (req, res) => {
+    res.send("Welcome to the Echo Admin Area!");
+});
+
 app.listen(PORT, () => {
     console.log(`Echo is running at http://localhost:${PORT}`);
 });

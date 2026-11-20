@@ -25,9 +25,38 @@ db.run(`
 `, (err) => {
     if (err) {
         console.error("Error creating users table:", err.message);
-    } else {
-        console.log("Users table ready.");
+        return;
     }
+
+    console.log("Users table ready.");
+
+    // Check whether the role column already exists
+    db.all("PRAGMA table_info(users)", (err, columns) => {
+        if (err) {
+            console.error("Error checking users table:", err.message);
+            return;
+        }
+
+        const hasRole = columns.some(column => column.name === "role");
+
+        if (hasRole) {
+            console.log("User roles ready.");
+            return;
+        }
+
+        // Add the role column without deleting existing users
+        db.run(`
+            ALTER TABLE users
+            ADD COLUMN role TEXT NOT NULL DEFAULT 'user'
+            CHECK (role IN ('user', 'admin'))
+        `, (err) => {
+            if (err) {
+                console.error("Error adding user roles:", err.message);
+            } else {
+                console.log("User roles added.");
+            }
+        });
+    });
 });
 
 db.run(`
