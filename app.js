@@ -201,6 +201,79 @@ app.get("/admin", requireAdmin, (req, res) => {
     res.send("Welcome to the Echo Admin Area!");
 });
 
+// Create a new post
+app.post("/posts", (req, res) => {
+    // Only logged-in users can create posts
+    if (!req.session.userId) {
+        return res.status(401).send("Please log in.");
+    }
+
+    const { title, content } = req.body || {};
+
+    // Validate the submitted information
+    if (
+        typeof title !== "string" ||
+        typeof content !== "string"
+    ) {
+        return res.status(400).send("Invalid post details.");
+    }
+
+    const cleanTitle = title.trim();
+    const cleanContent = content.trim();
+
+    if (
+        cleanTitle.length === 0 ||
+        cleanTitle.length > 120 ||
+        cleanContent.length === 0 ||
+        cleanContent.length > 5000
+    ) {
+        return res.status(400).send("Invalid post details.");
+    }
+
+    // Save the post using the logged-in user's ID
+    const sql = `
+        INSERT INTO posts (user_id, title, content)
+        VALUES (?, ?, ?)
+    `;
+
+    db.run(
+        sql,
+        [req.session.userId, cleanTitle, cleanContent],
+        function (err) {
+            if (err) {
+                console.error("Post creation error:", err.message);
+                return res.status(500).send("Failed to create post.");
+            }
+
+            res.status(201).send("Post published successfully!");
+        }
+    );
+});
+
+// Retrieve published posts
+app.get("/posts", (req, res) => {
+    const sql = `
+        SELECT
+            posts.id,
+            posts.title,
+            posts.content,
+            posts.created_at,
+            users.username AS author
+        FROM posts
+        JOIN users ON posts.user_id = users.id
+        ORDER BY posts.id DESC
+    `;
+
+    db.all(sql, [], (err, posts) => {
+        if (err) {
+            console.error("Error retrieving posts:", err.message);
+            return res.status(500).send("Failed to load posts.");
+        }
+
+        res.json(posts);
+    });
+});
+
 app.listen(PORT, () => {
     console.log(`Echo is running at http://localhost:${PORT}`);
 });

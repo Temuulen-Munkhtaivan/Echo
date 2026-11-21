@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Posts - Echo</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <main>
+        <h1>Echo Posts</h1>
+        <p>See what everyone is sharing.</p>
+
+        <a href="/create-post.html">Create a Post</a>
+
+        <section id="posts"></section>
+        <p id="message">Loading posts...</p>
+
+        <a href="/">Back to Echo</a>
+    </main>
+
+    <script>
+        async function loadPosts() {
+            const container = document.getElementById("posts");
+            const message = document.getElementById("message");
+
+            try {
+                // Retrieve posts from Express
+                const response = await fetch("/posts");
+
+                if (!response.ok) {
+                    throw new Error("Failed to retrieve posts");
+                }
+
+                const posts = await response.json();
+
+                message.textContent = "";
+
+                if (posts.length === 0) {
+                    message.textContent = "No posts yet.";
+                    return;
+                }
+
+                // Display each post
+                posts.forEach(post => {
+                    const article = document.createElement("article");
+                    const title = document.createElement("h2");
+                    const author = document.createElement("p");
+                    const content = document.createElement("p");
+
+                    title.textContent = post.title;
+                    author.textContent = "Posted by " + post.author;
+                    content.textContent = post.content;
+
+                    content.style.whiteSpace = "pre-wrap";
+
+                    article.appendChild(title);
+                    article.appendChild(author);
+                    article.appendChild(content);
+
+                    container.appendChild(article);
+                });
+
+            } catch (err) {
+                message.textContent = "Unable to load posts.";
+            }
+        }
+
+        loadPosts();
+    </script>
+</body>
+</html>
