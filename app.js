@@ -255,6 +255,7 @@ app.get("/posts", (req, res) => {
     const sql = `
         SELECT
             posts.id,
+            posts.user_id,
             posts.title,
             posts.content,
             posts.created_at,
@@ -271,6 +272,94 @@ app.get("/posts", (req, res) => {
         }
 
         res.json(posts);
+    });
+});
+
+// Edit an existing post
+app.post("/posts/:id/edit", (req, res) => {
+    if (!req.session.userId) {
+        return res.status(401).send("Please log in.");
+    }
+
+    const postId = Number(req.params.id);
+    const { title, content } = req.body || {};
+
+    // Validate the post ID
+    if (!Number.isSafeInteger(postId) || postId < 1) {
+        return res.status(400).send("Invalid post ID.");
+    }
+
+    // Validate the submitted information
+    if (
+        typeof title !== "string" ||
+        typeof content !== "string"
+    ) {
+        return res.status(400).send("Invalid post details.");
+    }
+
+    const cleanTitle = title.trim();
+    const cleanContent = content.trim();
+
+    if (
+        cleanTitle.length === 0 ||
+        cleanTitle.length > 120 ||
+        cleanContent.length === 0 ||
+        cleanContent.length > 5000
+    ) {
+        return res.status(400).send("Invalid post details.");
+    }
+
+    const sql = `
+        UPDATE posts
+        SET title = ?, content = ?
+        WHERE id = ? AND user_id = ?
+    `;
+
+    db.run(
+        sql,
+        [cleanTitle, cleanContent, postId, req.session.userId],
+        function (err) {
+            if (err) {
+                console.error("Post update error:", err.message);
+                return res.status(500).send("Failed to update post.");
+            }
+
+            if (this.changes === 0) {
+                return res.status(404).send("Post not found or access denied.");
+            }
+
+            res.send("Post updated successfully!");
+        }
+    );
+});
+
+app.post("/posts/:id/delete", (req, res) => {
+    // User must be logged in
+    if (!req.session.userId) {
+        return res.status(401).send("Please log in.");
+    }
+
+    const postId = Number(req.params.id);
+
+    // Validate the post ID
+    if (!Number.isSafeInteger(postId) || postId < 1) {
+        return res.status(400).send("Invalid post ID.");
+    }
+
+    // Delete only if the post belongs to this user
+    const sql = "DELETE FROM posts WHERE id = ? AND user_id = ?";
+
+    db.run(sql, [postId, req.session.userId], function (err) {
+        if (err) {
+            console.error("Delete post error:", err.message);
+            return res.status(500).send("Failed to delete post.");
+        }
+
+        if (this.changes === 0) {
+            return res.status(404).send("Post not found or access denied.");
+        }
+
+        res.redirect("/posts.html");
     });
 });
 
