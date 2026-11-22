@@ -156,9 +156,24 @@ app.get("/me", (req, res) => {
         return res.status(401).send("Please log in.");
     }
 
-    res.json({
-        loggedIn: true,
-        userId: req.session.userId
+    // Retrieve the logged-in user's role
+    const sql = "SELECT id, role FROM users WHERE id = ?";
+
+    db.get(sql, [req.session.userId], (err, user) => {
+        if (err) {
+            console.error("User lookup error:", err.message);
+            return res.status(500).send("Failed to retrieve user.");
+        }
+
+        if (!user) {
+            return res.status(401).send("Please log in.");
+        }
+
+        res.json({
+            loggedIn: true,
+            userId: user.id,
+            role: user.role
+        });
     });
 });
 
@@ -357,6 +372,31 @@ app.post("/posts/:id/delete", (req, res) => {
 
         if (this.changes === 0) {
             return res.status(404).send("Post not found or access denied.");
+        }
+
+        res.redirect("/posts.html");
+    });
+});
+
+app.post("/admin/posts/:id/delete", requireAdmin, (req, res) => {
+    const postId = Number(req.params.id);
+
+    // Validate the post ID
+    if (!Number.isSafeInteger(postId) || postId < 1) {
+        return res.status(400).send("Invalid post ID.");
+    }
+
+    // Admins can delete any post
+    const sql = "DELETE FROM posts WHERE id = ?";
+
+    db.run(sql, [postId], function (err) {
+        if (err) {
+            console.error("Admin delete error:", err.message);
+            return res.status(500).send("Failed to delete post.");
+        }
+
+        if (this.changes === 0) {
+            return res.status(404).send("Post not found.");
         }
 
         res.redirect("/posts.html");

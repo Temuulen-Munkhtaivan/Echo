@@ -97,6 +97,33 @@
 
                     article.appendChild(deleteForm);
                 }
+                    // Admins can remove posts belonging to other users
+                    if (
+                        currentUser &&
+                        currentUser.role === "admin" &&
+                        post.user_id !== currentUser.userId
+                    ) {
+                        const adminForm = document.createElement("form");
+
+                        adminForm.method = "POST";
+                        adminForm.action = "/admin/posts/" + post.id + "/delete";
+
+                        const removeButton = document.createElement("button");
+
+                        removeButton.type = "submit";
+                        removeButton.textContent = "Remove Post";
+
+                        adminForm.appendChild(removeButton);
+
+                        // Confirm moderation action
+                        adminForm.addEventListener("submit", (event) => {
+                            if (!confirm("Remove this user's post? This cannot be undone.")) {
+                                event.preventDefault();
+                            }
+                        });
+
+                        article.appendChild(adminForm);
+                    }
 
                     container.appendChild(article);
                 });
