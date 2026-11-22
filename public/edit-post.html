@@ -32,6 +32,8 @@
         <p><a href="/posts.html">Back to Posts</a></p>
     </main>
 
+    <script src="/csrf.js"></script>
+
     <script>
         const params = new URLSearchParams(window.location.search);
         const postId = params.get("id");
@@ -65,6 +67,7 @@
 
                 form.action = "/posts/" + postId + "/edit";
                 form.hidden = false;
+                addCsrfToken(form);
                 message.textContent = "";
 
             } catch (err) {

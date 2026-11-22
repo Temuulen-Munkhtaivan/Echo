@@ -30,5 +30,12 @@
             <p>No posts yet. Be the first to share something!</p>
         </section>
     </main>
+    <script src="/csrf.js"></script>
+
+    <script>
+        // Add CSRF tokens to all POST forms on this page
+        document.querySelectorAll('form[method="POST" i]')
+            .forEach(addCsrfToken);
+    </script>
 </body>
 </html>

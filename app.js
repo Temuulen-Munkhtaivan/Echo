@@ -3,7 +3,7 @@ const db = require("./database");
 const bcrypt = require("bcrypt");
 const app = express();
 const session = require("express-session");
-const { randomBytes } = require("node:crypto");
+const { randomBytes, timingSafeEqual } = require("node:crypto");
 const PORT = 3000;
 
 app.use(express.urlencoded({ extended: false }));
@@ -26,6 +26,40 @@ app.use(session({
 }));
 // Serve HTML and CSS files from the public folder.
 app.use(express.static("public"));
+// Validate CSRF tokens on requests that change data
+app.use((req, res, next) => {
+    const protectedMethods = ["POST", "PUT", "PATCH", "DELETE"];
+
+    // GET requests don't need CSRF validation
+    if (!protectedMethods.includes(req.method)) {
+        return next();
+    }
+
+    const submittedToken = req.body?._csrf;
+    const sessionToken = req.session?.csrfToken;
+
+    // Tokens must be 64-character hexadecimal strings
+    const validTokenFormat = /^[a-f0-9]{64}$/;
+
+    if (
+        typeof submittedToken !== "string" ||
+        typeof sessionToken !== "string" ||
+        !validTokenFormat.test(submittedToken) ||
+        !validTokenFormat.test(sessionToken)
+    ) {
+        return res.status(403).send("Invalid CSRF token.");
+    }
+
+    // Compare the tokens securely
+    const submittedBuffer = Buffer.from(submittedToken, "hex");
+    const sessionBuffer = Buffer.from(sessionToken, "hex");
+
+    if (!timingSafeEqual(submittedBuffer, sessionBuffer)) {
+        return res.status(403).send("Invalid CSRF token.");
+    }
+
+    next();
+});
 
 app.post("/register", async (req, res) => {
     const { username, email, password } = req.body || {};
@@ -400,6 +434,28 @@ app.post("/admin/posts/:id/delete", requireAdmin, (req, res) => {
         }
 
         res.redirect("/posts.html");
+    });
+});
+
+app.get("/csrf-token", (req, res) => {
+    // Generate a token if this session doesn't have one
+    if (!req.session.csrfToken) {
+        req.session.csrfToken = randomBytes(32).toString("hex");
+    }
+
+    // Prevent browsers from caching the token
+    res.setHeader("Cache-Control", "no-store");
+
+    // Save the token in the user's session
+    req.session.save((err) => {
+        if (err) {
+            console.error("CSRF session error:", err.message);
+            return res.status(500).send("Failed to generate CSRF token.");
+        }
+
+        res.json({
+            csrfToken: req.session.csrfToken
+        });
     });
 });
 
