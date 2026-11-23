@@ -1,9 +1,17 @@
 require("dotenv").config();
 const express = require("express");
+const session = require("express-session");
+const sqlite3 = require("sqlite3");
+const path = require("node:path");
+
+const sqliteStoreModule = require("express-session-sqlite");
+const SQLiteStore = (
+    sqliteStoreModule.default || sqliteStoreModule
+)(session);
+
 const db = require("./database");
 const bcrypt = require("bcrypt");
 const app = express();
-const session = require("express-session");
 const { randomBytes, timingSafeEqual } = require("node:crypto");
 const PORT = 3000;
 const { rateLimit } = require("express-rate-limit");
@@ -15,8 +23,20 @@ if (!sessionSecret || sessionSecret.length < 32) {
     throw new Error("Missing or weak ECHO_SESSION_SECRET.");
 }
 
+// Session expiry: 30 minutes
+const SESSION_TTL = 30 * 60 * 1000;
+
+// Store sessions in a separate SQLite database
+const sessionStore = new SQLiteStore({
+    driver: sqlite3.Database,
+    path: path.join(__dirname, "sessions.db"),
+    ttl: SESSION_TTL,
+    cleanupInterval: 5 * 60 * 1000
+});
+
 // Configure session management
 app.use(session({
+    store: sessionStore,
     name: "echo.sid",
     secret: sessionSecret,
     resave: false,
@@ -25,7 +45,7 @@ app.use(session({
         httpOnly: true,
         sameSite: "lax",
         secure: false,
-        maxAge: 30 * 60 * 1000
+        maxAge: SESSION_TTL
     }
 }));
 // Serve HTML and CSS files from the public folder.
