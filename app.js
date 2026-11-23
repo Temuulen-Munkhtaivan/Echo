@@ -1,3 +1,4 @@
+require("dotenv").config();
 const express = require("express");
 const db = require("./database");
 const bcrypt = require("bcrypt");
@@ -8,9 +9,11 @@ const PORT = 3000;
 const { rateLimit } = require("express-rate-limit");
 
 app.use(express.urlencoded({ extended: false }));
-// Generate a secret for local development
-const sessionSecret = process.env.ECHO_SESSION_SECRET ||
-    randomBytes(32).toString("hex");
+const sessionSecret = process.env.ECHO_SESSION_SECRET;
+
+if (!sessionSecret || sessionSecret.length < 32) {
+    throw new Error("Missing or weak ECHO_SESSION_SECRET.");
+}
 
 // Configure session management
 app.use(session({
