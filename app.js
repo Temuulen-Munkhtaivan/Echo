@@ -5,6 +5,7 @@ const app = express();
 const session = require("express-session");
 const { randomBytes, timingSafeEqual } = require("node:crypto");
 const PORT = 3000;
+const { rateLimit } = require("express-rate-limit");
 
 app.use(express.urlencoded({ extended: false }));
 // Generate a secret for local development
@@ -118,7 +119,16 @@ app.post("/register", async (req, res) => {
         res.status(500).send("Registration failed.");
     }
 });
-app.post("/login", (req, res) => {
+// Limit repeated failed login attempts
+const loginLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    limit: 5,
+    skipSuccessfulRequests: true,
+    standardHeaders: "draft-8",
+    legacyHeaders: false,
+    message: "Too many login attempts. Please try again in 15 minutes."
+});
+app.post("/login", loginLimiter, (req, res) => {
     const { email, password } = req.body || {};
 
     // Validate the submitted information
