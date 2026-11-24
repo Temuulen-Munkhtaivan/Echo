@@ -93,6 +93,15 @@ app.use((req, res, next) => {
 
     next();
 });
+function formSuccess(req, res, redirectPath, status, message) {
+    const isBrowserForm = (req.get("Accept") || "").includes("text/html");
+
+    if (isBrowserForm) {
+        return res.redirect(303, redirectPath);
+    }
+
+    return res.status(status).send(message);
+}
 
 app.post("/register", async (req, res) => {
     const { username, email, password } = req.body || {};
@@ -143,7 +152,7 @@ app.post("/register", async (req, res) => {
                 return res.status(500).send("Registration failed.");
             }
 
-            res.status(201).send("Registration successful!");
+            formSuccess(req, res, "/login.html", 201, "Registration successful!");
         });
 
     } catch (err) {
@@ -216,7 +225,7 @@ app.post("/login", loginLimiter, (req, res) => {
                         return res.status(500).send("Login failed.");
                     }
 
-                    res.send("Login successful!");
+                    formSuccess(req, res, "/", 200, "Login successful!");
                 });
             });
 
@@ -261,7 +270,7 @@ app.post("/logout", (req, res) => {
         }
 
         res.clearCookie("echo.sid");
-        res.redirect("/login.html");
+        res.redirect(303, "/");
     });
 });
 
@@ -289,7 +298,7 @@ function requireAdmin(req, res, next) {
 
 // Administrator-only route
 app.get("/admin", requireAdmin, (req, res) => {
-    res.send("Welcome to the Echo Admin Area!");
+    res.redirect("/posts.html");
 });
 
 // Create a new post
@@ -336,7 +345,7 @@ app.post("/posts", (req, res) => {
                 return res.status(500).send("Failed to create post.");
             }
 
-            res.status(201).send("Post published successfully!");
+            formSuccess(req, res, "/", 201, "Post published successfully!");
         }
     );
 });
@@ -419,7 +428,7 @@ app.post("/posts/:id/edit", (req, res) => {
                 return res.status(404).send("Post not found or access denied.");
             }
 
-            res.send("Post updated successfully!");
+            formSuccess(req, res, "/", 200, "Post updated successfully!");
         }
     );
 });
@@ -450,7 +459,7 @@ app.post("/posts/:id/delete", (req, res) => {
             return res.status(404).send("Post not found or access denied.");
         }
 
-        res.redirect("/posts.html");
+        formSuccess(req, res, "/posts.html", 200, "Post deleted successfully!");
     });
 });
 
