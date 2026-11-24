@@ -7,17 +7,28 @@
     <link rel="stylesheet" href="style.css">
 </head>
 
-<form action="/logout" method="POST">
-    <button type="submit">Log Out</button>
-</form>
-
 <body>
     <header>
         <h1>Echo</h1>
         <nav>
             <a href="/">Home</a>
-            <a href="/login.html">Login</a>
-            <a href="/register.html">Register</a>
+            <a href="/posts.html">Posts</a>
+
+            <a href="/create-post.html" id="createPostLink" hidden>
+                Create Post
+            </a>
+
+            <a href="/login.html" id="loginLink" hidden>
+                Login
+            </a>
+
+            <a href="/register.html" id="registerLink" hidden>
+                Register
+            </a>
+
+            <form action="/logout" method="POST" id="logoutForm" hidden>
+                <button type="submit">Log Out</button>
+            </form>
         </nav>
     </header>
 
@@ -27,8 +38,15 @@
 
         <section>
             <h3>Recent Posts</h3>
-            <p>No posts yet. Be the first to share something!</p>
+
+            <div id="recent-posts">
+                <p>Loading posts...</p>
+            </div>
+
+            <a href="/posts.html">View All Posts</a>
         </section>
     </main>
+    <script src="/nav.js"></script>
+    <script src="/home.js"></script>
 </body>
 </html>

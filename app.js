@@ -24,6 +24,14 @@ app.use(session({
         maxAge: 30 * 60 * 1000
     }
 }));
+// Prevent logged-out users from opening Create Post
+app.get("/create-post.html", (req, res, next) => {
+    if (!req.session?.userId) {
+        return res.redirect("/login.html");
+    }
+
+    next();
+});
 // Serve HTML and CSS files from the public folder.
 app.use(express.static("public"));
 
@@ -76,6 +84,12 @@ app.post("/register", async (req, res) => {
                 return res.status(500).send("Registration failed.");
             }
 
+            // Redirect browser users to the login page
+            if ((req.get("Accept") || "").includes("text/html")) {
+                return res.redirect(303, "/login.html");
+            }
+
+            // Keep the original response for API tests
             res.status(201).send("Registration successful!");
         });
 
@@ -140,7 +154,7 @@ app.post("/login", (req, res) => {
                         return res.status(500).send("Login failed.");
                     }
 
-                    res.send("Login successful!");
+                    res.redirect("/");
                 });
             });
 
@@ -185,7 +199,7 @@ app.post("/logout", (req, res) => {
         }
 
         res.clearCookie("echo.sid");
-        res.redirect("/login.html");
+        res.redirect("/");
     });
 });
 
@@ -213,6 +227,13 @@ function requireAdmin(req, res, next) {
 
 // Administrator-only route
 app.get("/admin", requireAdmin, (req, res) => {
+
+    // Redirect browser users to the posts page
+    if ((req.get("Accept") || "").includes("text/html")) {
+        return res.redirect("/posts.html");
+    }
+
+    // Keep the original response for API tests
     res.send("Welcome to the Echo Admin Area!");
 });
 
@@ -260,6 +281,12 @@ app.post("/posts", (req, res) => {
                 return res.status(500).send("Failed to create post.");
             }
 
+            // Redirect browser form submissions to the posts page
+            if ((req.get("Accept") || "").includes("text/html")) {
+                return res.redirect(303, "/");
+            }
+
+            // Keep the original response for API requests
             res.status(201).send("Post published successfully!");
         }
     );
@@ -343,6 +370,12 @@ app.post("/posts/:id/edit", (req, res) => {
                 return res.status(404).send("Post not found or access denied.");
             }
 
+            // Redirect browser users to the homepage
+            if ((req.get("Accept") || "").includes("text/html")) {
+                return res.redirect(303, "/");
+            }
+
+            // Keep the original response for API tests
             res.send("Post updated successfully!");
         }
     );
@@ -374,7 +407,7 @@ app.post("/posts/:id/delete", (req, res) => {
             return res.status(404).send("Post not found or access denied.");
         }
 
-        res.redirect("/posts.html");
+        res.redirect(303, "/");
     });
 });
 
@@ -399,7 +432,7 @@ app.post("/admin/posts/:id/delete", requireAdmin, (req, res) => {
             return res.status(404).send("Post not found.");
         }
 
-        res.redirect("/posts.html");
+        res.redirect(303, "/");
     });
 });
 
