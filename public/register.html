@@ -28,11 +28,6 @@
         <p>Already have an account? <a href="/login.html">Log in</a></p>
     </main>
     <script src="/csrf.js"></script>
-
-    <script>
-        // Add CSRF tokens to all POST forms on this page
-        document.querySelectorAll('form[method="POST" i]')
-            .forEach(addCsrfToken);
-    </script>
+    <script src="/form-csrf.js"></script>
 </body>
 </html>

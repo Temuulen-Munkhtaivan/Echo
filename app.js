@@ -13,7 +13,12 @@ const db = require("./database");
 const bcrypt = require("bcrypt");
 const app = express();
 app.use(helmet({
-    contentSecurityPolicy: false,
+    contentSecurityPolicy: {
+        directives: {
+            upgradeInsecureRequests:
+                process.env.NODE_ENV === "production" ? [] : null
+        }
+    },
     strictTransportSecurity: process.env.NODE_ENV === "production"
 }));
 const { randomBytes, timingSafeEqual } = require("node:crypto");
