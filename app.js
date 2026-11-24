@@ -57,6 +57,15 @@ app.use(session({
         maxAge: SESSION_TTL
     }
 }));
+// Prevent logged-out users from opening the Create Post page
+app.get("/create-post.html", (req, res, next) => {
+    if (!req.session || !req.session.userId) {
+        return res.redirect("/login.html");
+    }
+
+    next();
+});
+
 // Serve HTML and CSS files from the public folder.
 app.use(express.static("public"));
 // Validate CSRF tokens on requests that change data
@@ -305,6 +314,12 @@ app.get("/admin", requireAdmin, (req, res) => {
 app.post("/posts", (req, res) => {
     // Only logged-in users can create posts
     if (!req.session.userId) {
+        const isBrowserForm = (req.get("Accept") || "").includes("text/html");
+
+        if (isBrowserForm) {
+            return res.redirect(303, "/login.html");
+        }
+
         return res.status(401).send("Please log in.");
     }
 
