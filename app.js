@@ -3,7 +3,7 @@ const express = require("express");
 const session = require("express-session");
 const sqlite3 = require("sqlite3");
 const path = require("node:path");
-
+const helmet = require("helmet");
 const sqliteStoreModule = require("express-session-sqlite");
 const SQLiteStore = (
     sqliteStoreModule.default || sqliteStoreModule
@@ -12,6 +12,10 @@ const SQLiteStore = (
 const db = require("./database");
 const bcrypt = require("bcrypt");
 const app = express();
+app.use(helmet({
+    contentSecurityPolicy: false,
+    strictTransportSecurity: process.env.NODE_ENV === "production"
+}));
 const { randomBytes, timingSafeEqual } = require("node:crypto");
 const PORT = 3000;
 const { rateLimit } = require("express-rate-limit");
