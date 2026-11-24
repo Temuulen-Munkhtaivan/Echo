@@ -2,7 +2,7 @@ const sqlite3 = require("sqlite3").verbose();
 const path = require("path");
 
 const db = new sqlite3.Database(
-    path.join(__dirname, "echo.db"),
+    path.join(__dirname, "echo-insecure.db"),
     (err) => {
         if (err) {
             console.error("Database error:", err.message);

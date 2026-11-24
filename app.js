@@ -403,6 +403,6 @@ app.post("/admin/posts/:id/delete", requireAdmin, (req, res) => {
     });
 });
 
-app.listen(PORT, () => {
-    console.log(`Echo is running at http://localhost:${PORT}`);
+app.listen(PORT, "127.0.0.1", () => {
+    console.log(`Echo is running at http://127.0.0.1:${PORT}`);
 });
