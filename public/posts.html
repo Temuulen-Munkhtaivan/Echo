@@ -13,6 +13,9 @@
 
         <a href="/create-post.html">Create a Post</a>
 
+        <p id="authorFilter" hidden></p>
+        <a href="/posts.html" id="showAllPosts" hidden>Show All Posts</a>
+
         <section id="posts"></section>
         <p id="message">Loading posts...</p>
 
@@ -41,22 +44,53 @@
                     ? await userResponse.json()
                     : null;
 
+                // Read the author from the URL
+                const selectedAuthor = new URLSearchParams(
+                    window.location.hash.slice(1)
+                ).get("author");
+
+                // Filter posts by author
+                const filteredPosts = selectedAuthor
+                    ? posts.filter(post => post.author === selectedAuthor)
+                    : posts;
+
+                const authorFilter = document.getElementById("authorFilter");
+                const showAllPosts = document.getElementById("showAllPosts");
+
+                authorFilter.hidden = !selectedAuthor;
+                showAllPosts.hidden = !selectedAuthor;
+
+                // INTENTIONALLY VULNERABLE: DOM-based XSS
+                authorFilter.innerHTML = selectedAuthor
+                    ? "Showing posts by: " + selectedAuthor
+                    : "";
+
+                container.replaceChildren();
                 message.textContent = "";
 
-                if (posts.length === 0) {
-                    message.textContent = "No posts yet.";
+                if (filteredPosts.length === 0) {
+                    message.textContent = selectedAuthor
+                        ? "No posts found for this user."
+                        : "No posts yet.";
                     return;
                 }
 
                 // Display each post
-                posts.forEach(post => {
+                filteredPosts.forEach(post => {
                     const article = document.createElement("article");
                     const title = document.createElement("h2");
                     const author = document.createElement("p");
                     const content = document.createElement("p");
 
                     title.textContent = post.title;
-                    author.textContent = "Posted by " + post.author;
+                    author.textContent = "Posted by ";
+
+                    const authorLink = document.createElement("a");
+
+                    authorLink.href = "#author=" + encodeURIComponent(post.author);
+                    authorLink.textContent = post.author;
+
+                    author.appendChild(authorLink);
                     content.innerHTML = post.content;
 
                     content.style.whiteSpace = "pre-wrap";
@@ -134,6 +168,7 @@
         }
 
         loadPosts();
+        window.addEventListener("hashchange", loadPosts);
     </script>
 </body>
 </html>
