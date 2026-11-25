@@ -111,8 +111,16 @@ function formSuccess(req, res, redirectPath, status, message) {
 
     return res.status(status).send(message);
 }
+// Limit repeated registration attempts
+const registrationLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    limit: 5,
+    standardHeaders: "draft-8",
+    legacyHeaders: false,
+    message: "Too many registration attempts. Please try again in 15 minutes."
+});
 
-app.post("/register", async (req, res) => {
+app.post("/register", registrationLimiter, async (req, res) => {
     const { username, email, password } = req.body || {};
 
     // Check the submitted information
