@@ -34,7 +34,7 @@ fs.mkdirSync(path.dirname(securityLogPath), {
     recursive: true
 });
 
-function logSecurityEvent(event, req, userId = null) {
+function logSecurityEvent(event, req, userId = null, postId = null) {
     const logEntry = {
         timestamp: new Date().toISOString(),
         event: event,
@@ -43,6 +43,10 @@ function logSecurityEvent(event, req, userId = null) {
             ? req.ip.slice(0, 64)
             : "unknown"
     };
+    // Include the affected post when recording moderation actions
+    if (Number.isSafeInteger(postId) && postId > 0) {
+        logEntry.postId = postId;
+    }
 
     fs.appendFile(
         securityLogPath,
@@ -348,7 +352,10 @@ app.post("/logout", (req, res) => {
 
 // Check whether the logged-in user is an administrator
 function requireAdmin(req, res, next) {
+    // User is not logged in
     if (!req.session.userId) {
+        logSecurityEvent("ADMIN_ACCESS_DENIED", req);
+
         return res.status(401).send("Please log in.");
     }
 
@@ -357,10 +364,24 @@ function requireAdmin(req, res, next) {
     db.get(sql, [req.session.userId], (err, user) => {
         if (err) {
             console.error("Authorization error:", err.message);
+
+            logSecurityEvent(
+                "ADMIN_PERMISSION_CHECK_ERROR",
+                req,
+                req.session.userId
+            );
+
             return res.status(500).send("Unable to verify permissions.");
         }
 
+        // Logged-in user does not have administrator privileges
         if (!user || user.role !== "admin") {
+            logSecurityEvent(
+                "ADMIN_ACCESS_DENIED",
+                req,
+                req.session.userId
+            );
+
             return res.status(403).send("Access denied.");
         }
 
@@ -668,6 +689,14 @@ app.post("/admin/posts/:id/delete", requireAdmin, (req, res) => {
         if (this.changes === 0) {
             return res.status(404).send("Post not found.");
         }
+
+        // Record the successful administrator action
+        logSecurityEvent(
+            "ADMIN_POST_DELETED",
+            req,
+            req.session.userId,
+            postId
+        );
 
         res.redirect("/posts.html");
     });
