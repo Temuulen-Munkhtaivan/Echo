@@ -34,6 +34,40 @@ app.get("/create-post.html", (req, res, next) => {
 });
 // Serve HTML and CSS files from the public folder.
 app.use(express.static("public"));
+// INTENTIONALLY VULNERABLE: Reflected XSS demonstration
+app.get("/search", (req, res) => {
+    const query = typeof req.query.q === "string"
+        ? req.query.q
+        : "";
+
+    res.send(`
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Search - Echo</title>
+            <link rel="stylesheet" href="/style.css">
+        </head>
+        <body>
+            <main>
+                <h1>Search Echo</h1>
+                <p>Search for something on Echo.</p>
+
+                <form action="/search" method="GET">
+                    <label for="q">Search term</label>
+                    <input type="text" id="q" name="q" required>
+                    <button type="submit">Search</button>
+                </form>
+
+                <p>Search results for: ${query}</p>
+
+                <p><a href="/">Back to Echo</a></p>
+            </main>
+        </body>
+        </html>
+    `);
+});
 
 app.post("/register", async (req, res) => {
     const { username, email, password } = req.body || {};
