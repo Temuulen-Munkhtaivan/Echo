@@ -119,18 +119,17 @@ app.get("/search", (req, res) => {
         return showSearchPage();
     }
 
+    // INTENTIONALLY VULNERABLE: SQL Injection demonstration
     const sql = `
         SELECT posts.title, posts.content, users.username AS author
         FROM posts
         JOIN users ON posts.user_id = users.id
-        WHERE posts.title LIKE ? OR posts.content LIKE ?
+        WHERE posts.title LIKE '%${query}%' OR posts.content LIKE '%${query}%'
         ORDER BY posts.id DESC
         LIMIT 50
     `;
 
-    const searchTerm = `%${query}%`;
-
-    db.all(sql, [searchTerm, searchTerm], (err, posts) => {
+    db.all(sql, [], (err, posts) => {
         if (err) {
             console.error("Search error:", err.message);
             return showSearchPage([], "Unable to search posts.");
