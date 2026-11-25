@@ -11,6 +11,11 @@ const SQLiteStore = (
 
 const db = require("./database");
 const bcrypt = require("bcrypt");
+// Dummy hash used to reduce login timing differences
+const DUMMY_PASSWORD_HASH = bcrypt.hashSync(
+    "DummyPasswordNotForRealAccounts123!",
+    12
+);
 const app = express();
 app.use(helmet({
     contentSecurityPolicy: {
@@ -211,18 +216,19 @@ app.post("/login", loginLimiter, (req, res) => {
             return res.status(500).send("Login failed.");
         }
 
-        if (!user) {
-            return res.status(401).send("Invalid email or password.");
-        }
-
         try {
-            // Compare the password with the stored hash
+            // Use the real hash or a dummy hash if the account doesn't exist
+            const hashToCheck = user
+                ? user.password_hash
+                : DUMMY_PASSWORD_HASH;
+
             const passwordMatches = await bcrypt.compare(
                 password,
-                user.password_hash
+                hashToCheck
             );
 
-            if (!passwordMatches) {
+            // Always return the same message for invalid credentials
+            if (!user || !passwordMatches) {
                 return res.status(401).send("Invalid email or password.");
             }
 
