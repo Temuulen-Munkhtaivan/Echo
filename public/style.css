@@ -516,3 +516,49 @@ header nav form {
 #loginErrorDialog button:hover {
     background: #7890ff;
 }
+
+#loginErrorDialog,
+#registerErrorDialog {
+    width: min(380px, calc(100% - 40px));
+    padding: 28px;
+    background: #1a2338;
+    color: white;
+    border: 1px solid #394866;
+    border-radius: 14px;
+    box-shadow: 0 20px 55px rgba(0, 0, 0, 0.55);
+    text-align: center;
+}
+
+#loginErrorDialog::backdrop,
+#registerErrorDialog::backdrop {
+    background: rgba(5, 10, 25, 0.75);
+}
+
+#loginErrorDialog h2,
+#registerErrorDialog h2 {
+    color: #ff8b98;
+    margin-top: 0;
+    margin-bottom: 12px;
+}
+
+#loginErrorDialog p,
+#registerErrorDialog p {
+    color: #d6dbea;
+    margin-bottom: 22px;
+}
+
+#loginErrorDialog button,
+#registerErrorDialog button {
+    background: #637df4;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 11px 22px;
+    cursor: pointer;
+    font-weight: 600;
+}
+
+#loginErrorDialog button:hover,
+#registerErrorDialog button:hover {
+    background: #7890ff;
+}
