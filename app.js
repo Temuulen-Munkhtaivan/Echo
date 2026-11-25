@@ -404,6 +404,113 @@ app.get("/posts", (req, res) => {
         res.json(posts);
     });
 });
+// Escape HTML to prevent XSS
+function escapeSearchHtml(value) {
+    return String(value ?? "").replace(/[&<>"']/g, (char) => {
+        const characters = {
+            "&": "&amp;",
+            "<": "&lt;",
+            ">": "&gt;",
+            '"': "&quot;",
+            "'": "&#39;"
+        };
+
+        return characters[char];
+    });
+}
+
+// Search published posts
+app.get("/search", (req, res) => {
+    const query = typeof req.query.q === "string"
+        ? req.query.q.trim().slice(0, 120)
+        : "";
+
+    function showSearchPage(posts = [], error = "") {
+        const safeQuery = escapeSearchHtml(query);
+
+        let resultsHtml = "";
+
+        if (error) {
+            resultsHtml = `<p>${escapeSearchHtml(error)}</p>`;
+        } else if (!query) {
+            resultsHtml = "<p>Enter a search term to find posts.</p>";
+        } else if (posts.length === 0) {
+            resultsHtml = "<p>No matching posts found.</p>";
+        } else {
+            resultsHtml = posts.map(post => `
+                <article>
+                    <h2>${escapeSearchHtml(post.title)}</h2>
+                    <p>Posted by ${escapeSearchHtml(post.author)}</p>
+                    <p>${escapeSearchHtml(post.content)}</p>
+                </article>
+            `).join("");
+        }
+
+        res.type("html").send(`
+            <!DOCTYPE html>
+            <html lang="en">
+            <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <title>Search - Echo</title>
+                <link rel="stylesheet" href="/style.css">
+            </head>
+            <body>
+                <main>
+                    <h1>Search Echo</h1>
+                    <p>Find posts on Echo.</p>
+
+                    <form action="/search" method="GET">
+                        <label for="q">Search term</label>
+                        <input
+                            type="text"
+                            id="q"
+                            name="q"
+                            value="${safeQuery}"
+                            maxlength="120"
+                            required
+                        >
+                        <button type="submit">Search</button>
+                    </form>
+
+                    <p>Search results for: ${safeQuery}</p>
+
+                    <section id="searchResults">
+                        ${resultsHtml}
+                    </section>
+
+                    <p><a href="/">Back to Echo</a></p>
+                </main>
+            </body>
+            </html>
+        `);
+    }
+
+    if (!query) {
+        return showSearchPage();
+    }
+
+    // Parameterized query prevents SQL Injection
+    const sql = `
+        SELECT posts.title, posts.content, users.username AS author
+        FROM posts
+        JOIN users ON posts.user_id = users.id
+        WHERE posts.title LIKE ? OR posts.content LIKE ?
+        ORDER BY posts.id DESC
+        LIMIT 50
+    `;
+
+    const searchTerm = `%${query}%`;
+
+    db.all(sql, [searchTerm, searchTerm], (err, posts) => {
+        if (err) {
+            console.error("Search error:", err.message);
+            return showSearchPage([], "Unable to search posts.");
+        }
+
+        showSearchPage(posts);
+    });
+});
 
 // Edit an existing post
 app.post("/posts/:id/edit", (req, res) => {
