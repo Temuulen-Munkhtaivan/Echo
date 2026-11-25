@@ -434,3 +434,85 @@ nav form button {
 #recent-posts article p {
     overflow-wrap: anywhere;
 }
+/* Align navigation items */
+header nav {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+}
+
+header nav a {
+    margin-left: 0;
+}
+
+/* Username display */
+#usernameDisplay {
+    display: inline-flex;
+    align-items: center;
+    color: #8faaff;
+    font-weight: 600;
+    margin-left: 0;
+    line-height: 1;
+    white-space: nowrap;
+}
+
+/* Logout button alignment */
+header nav form {
+    display: flex;
+    align-items: center;
+    margin: 0;
+}
+
+/* Hide elements correctly */
+[hidden] {
+    display: none !important;
+}
+
+/* Login Error Popup */
+
+#loginErrorDialog {
+    width: min(380px, calc(100% - 40px));
+    padding: 28px;
+
+    background: #1a2338;
+    color: white;
+
+    border: 1px solid #394866;
+    border-radius: 14px;
+
+    box-shadow: 0 20px 55px rgba(0, 0, 0, 0.55);
+
+    text-align: center;
+}
+
+#loginErrorDialog::backdrop {
+    background: rgba(5, 10, 25, 0.75);
+}
+
+#loginErrorDialog h2 {
+    color: #ff8b98;
+    margin-top: 0;
+    margin-bottom: 12px;
+}
+
+#loginErrorDialog p {
+    color: #d6dbea;
+    margin-bottom: 22px;
+}
+
+#loginErrorDialog button {
+    background: #637df4;
+    color: white;
+
+    border: none;
+    border-radius: 8px;
+
+    padding: 11px 22px;
+
+    cursor: pointer;
+    font-weight: 600;
+}
+
+#loginErrorDialog button:hover {
+    background: #7890ff;
+}

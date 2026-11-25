@@ -1,5 +1,7 @@
 async function updateNavigation() {
     let loggedIn = false;
+    let username = "";
+    let role = "";
 
     try {
         const response = await fetch("/me", {
@@ -8,7 +10,10 @@ async function updateNavigation() {
 
         if (response.ok) {
             const user = await response.json();
+
             loggedIn = user.loggedIn === true;
+            username = user.username || "";
+            role = user.role || "";
         }
 
     } catch (err) {
@@ -22,6 +27,21 @@ async function updateNavigation() {
     // Links visible when logged out
     document.getElementById("loginLink").hidden = loggedIn;
     document.getElementById("registerLink").hidden = loggedIn;
+
+    // Display username
+    const usernameDisplay = document.getElementById("usernameDisplay");
+
+    if (usernameDisplay) {
+        if (loggedIn) {
+            usernameDisplay.textContent =
+                username + (role === "admin" ? " (Admin)" : "");
+
+            usernameDisplay.hidden = false;
+        } else {
+            usernameDisplay.textContent = "";
+            usernameDisplay.hidden = true;
+        }
+    }
 }
 
 updateNavigation();

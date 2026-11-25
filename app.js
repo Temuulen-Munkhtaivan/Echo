@@ -251,7 +251,7 @@ app.get("/me", (req, res) => {
     }
 
     // Retrieve the logged-in user's role
-    const sql = "SELECT id, role FROM users WHERE id = ?";
+    const sql = "SELECT id, username, role FROM users WHERE id = ?";
 
     db.get(sql, [req.session.userId], (err, user) => {
         if (err) {
@@ -266,6 +266,7 @@ app.get("/me", (req, res) => {
         res.json({
             loggedIn: true,
             userId: user.id,
+            username: user.username,
             role: user.role
         });
     });
