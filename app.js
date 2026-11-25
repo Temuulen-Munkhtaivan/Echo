@@ -526,6 +526,6 @@ app.get("/csrf-token", (req, res) => {
     });
 });
 
-app.listen(PORT, () => {
+app.listen(PORT, "127.0.0.1", () => {
     console.log(`Echo is running at http://localhost:${PORT}`);
 });
