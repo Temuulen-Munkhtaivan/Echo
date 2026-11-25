@@ -21,6 +21,9 @@ const app = express();
 app.use(helmet({
     contentSecurityPolicy: {
         directives: {
+            fontSrc: ["'self'"],
+            styleSrc: ["'self'"],
+
             upgradeInsecureRequests:
                 process.env.NODE_ENV === "production" ? [] : null
         }
