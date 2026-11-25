@@ -3,6 +3,7 @@ const express = require("express");
 const session = require("express-session");
 const sqlite3 = require("sqlite3");
 const path = require("node:path");
+const fs = require("node:fs");
 const helmet = require("helmet");
 const sqliteStoreModule = require("express-session-sqlite");
 const SQLiteStore = (
@@ -26,6 +27,34 @@ app.use(helmet({
     },
     strictTransportSecurity: process.env.NODE_ENV === "production"
 }));
+// Security event logging
+const securityLogPath = path.join(__dirname, "logs", "security.log");
+
+fs.mkdirSync(path.dirname(securityLogPath), {
+    recursive: true
+});
+
+function logSecurityEvent(event, req, userId = null) {
+    const logEntry = {
+        timestamp: new Date().toISOString(),
+        event: event,
+        userId: Number.isInteger(userId) ? userId : null,
+        ip: typeof req.ip === "string"
+            ? req.ip.slice(0, 64)
+            : "unknown"
+    };
+
+    fs.appendFile(
+        securityLogPath,
+        JSON.stringify(logEntry) + "\n",
+        "utf8",
+        (err) => {
+            if (err) {
+                console.error("Security logging failed:", err.message);
+            }
+        }
+    );
+}
 const { randomBytes, timingSafeEqual } = require("node:crypto");
 const PORT = 3000;
 const { rateLimit } = require("express-rate-limit");
@@ -189,7 +218,20 @@ const loginLimiter = rateLimit({
     skipSuccessfulRequests: true,
     standardHeaders: "draft-8",
     legacyHeaders: false,
-    message: "Too many login attempts. Please try again in 15 minutes."
+
+    // Monitor excessive login attempts
+    handler: (req, res) => {
+        logSecurityEvent("LOGIN_RATE_LIMITED", req);
+
+        console.warn(
+            "[SECURITY ALERT] Excessive login attempts from:",
+            req.ip
+        );
+
+        return res.status(429).send(
+            "Too many login attempts. Please try again in 15 minutes."
+        );
+    }
 });
 app.post("/login", loginLimiter, (req, res) => {
     const { email, password } = req.body || {};
@@ -202,6 +244,7 @@ app.post("/login", loginLimiter, (req, res) => {
         password.length < 12 ||
         Buffer.byteLength(password, "utf8") > 72
     ) {
+        logSecurityEvent("LOGIN_FAILED", req);
         return res.status(401).send("Invalid email or password.");
     }
 
@@ -229,8 +272,11 @@ app.post("/login", loginLimiter, (req, res) => {
 
             // Always return the same message for invalid credentials
             if (!user || !passwordMatches) {
+                logSecurityEvent("LOGIN_FAILED", req);
                 return res.status(401).send("Invalid email or password.");
             }
+
+            
 
             // Create a fresh session after successful login
             req.session.regenerate((err) => {
@@ -247,6 +293,8 @@ app.post("/login", loginLimiter, (req, res) => {
                         console.error("Session save error:", err.message);
                         return res.status(500).send("Login failed.");
                     }
+
+                    logSecurityEvent("LOGIN_SUCCESS", req, user.id);
 
                     formSuccess(req, res, "/", 200, "Login successful!");
                 });
