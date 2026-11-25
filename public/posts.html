@@ -18,6 +18,24 @@
 
         <a href="/">Back to Echo</a>
     </main>
+    <!-- Delete Post Confirmation Popup -->
+    <dialog id="deleteDialog" aria-labelledby="deleteDialogTitle">
+        <h2 id="deleteDialogTitle">Delete Post?</h2>
+
+        <p id="deleteDialogMessage"></p>
+
+        <p id="deleteDialogError" role="alert" hidden></p>
+
+        <div class="delete-dialog-buttons">
+            <button type="button" id="cancelDelete">
+                Cancel
+            </button>
+
+            <button type="button" id="confirmDelete">
+                Delete Post
+            </button>
+        </div>
+    </dialog>
     <script src="/csrf.js"></script>
     <script src="/posts.js"></script>
 </body>

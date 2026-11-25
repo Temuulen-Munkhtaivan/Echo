@@ -604,3 +604,111 @@ header nav form {
 #postErrorDialog button:hover {
     background: #7890ff;
 }
+
+/* Delete Confirmation Popup */
+
+#deleteDialog {
+    width: min(400px, calc(100% - 40px));
+    padding: 28px;
+    background: #1a2338;
+    color: white;
+    border: 1px solid #394866;
+    border-radius: 14px;
+    box-shadow: 0 20px 55px rgba(0, 0, 0, 0.55);
+    text-align: center;
+}
+
+#deleteDialog::backdrop {
+    background: rgba(5, 10, 25, 0.75);
+}
+
+#deleteDialog h2 {
+    color: #ff8b98;
+    margin-top: 0;
+}
+
+#deleteDialog p {
+    color: #d6dbea;
+    margin-bottom: 20px;
+}
+
+#deleteDialogError {
+    color: #ff8b98;
+}
+
+.delete-dialog-buttons {
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+}
+
+#cancelDelete,
+#confirmDelete {
+    border: none;
+    border-radius: 8px;
+    padding: 11px 18px;
+    cursor: pointer;
+    font-weight: 600;
+}
+
+#cancelDelete {
+    background: #394866;
+    color: white;
+}
+
+#confirmDelete {
+    background: #b83e51;
+    color: white;
+}
+
+#confirmDelete:hover {
+    background: #d64b60;
+}
+
+#cancelDelete:disabled,
+#confirmDelete:disabled {
+    opacity: 0.6;
+    cursor: wait;
+}
+
+/* Edit Post Error Popup */
+
+#editErrorDialog {
+    width: min(380px, calc(100% - 40px));
+    padding: 28px;
+    background: #1a2338;
+    color: white;
+    border: 1px solid #394866;
+    border-radius: 14px;
+    box-shadow: 0 20px 55px rgba(0, 0, 0, 0.55);
+    text-align: center;
+}
+
+#editErrorDialog::backdrop {
+    background: rgba(5, 10, 25, 0.75);
+}
+
+#editErrorDialog h2 {
+    color: #ff8b98;
+    margin-top: 0;
+    margin-bottom: 12px;
+}
+
+#editErrorDialog p {
+    color: #d6dbea;
+    margin-bottom: 22px;
+}
+
+#editErrorDialog button {
+    background: #637df4;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 11px 22px;
+    cursor: pointer;
+    font-weight: 600;
+}
+
+#editErrorDialog button:hover {
+    background: #7890ff;
+}
