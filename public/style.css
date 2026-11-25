@@ -562,3 +562,45 @@ header nav form {
 #registerErrorDialog button:hover {
     background: #7890ff;
 }
+
+/* Create Post Error Popup */
+
+#postErrorDialog {
+    width: min(380px, calc(100% - 40px));
+    padding: 28px;
+    background: #1a2338;
+    color: white;
+    border: 1px solid #394866;
+    border-radius: 14px;
+    box-shadow: 0 20px 55px rgba(0, 0, 0, 0.55);
+    text-align: center;
+}
+
+#postErrorDialog::backdrop {
+    background: rgba(5, 10, 25, 0.75);
+}
+
+#postErrorDialog h2 {
+    color: #ff8b98;
+    margin-top: 0;
+    margin-bottom: 12px;
+}
+
+#postErrorDialog p {
+    color: #d6dbea;
+    margin-bottom: 22px;
+}
+
+#postErrorDialog button {
+    background: #637df4;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 11px 22px;
+    cursor: pointer;
+    font-weight: 600;
+}
+
+#postErrorDialog button:hover {
+    background: #7890ff;
+}
