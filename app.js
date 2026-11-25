@@ -34,39 +34,110 @@ app.get("/create-post.html", (req, res, next) => {
 });
 // Serve HTML and CSS files from the public folder.
 app.use(express.static("public"));
+
+function escapeSearchHtml(value) {
+    return String(value ?? "").replace(/[&<>"']/g, (char) => {
+        const characters = {
+            "&": "&amp;",
+            "<": "&lt;",
+            ">": "&gt;",
+            '"': "&quot;",
+            "'": "&#39;"
+        };
+
+        return characters[char];
+    });
+}
+
 // INTENTIONALLY VULNERABLE: Reflected XSS demonstration
 app.get("/search", (req, res) => {
     const query = typeof req.query.q === "string"
-        ? req.query.q
+        ? req.query.q.trim().slice(0, 120)
         : "";
 
-    res.send(`
-        <!DOCTYPE html>
-        <html lang="en">
-        <head>
-            <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>Search - Echo</title>
-            <link rel="stylesheet" href="/style.css">
-        </head>
-        <body>
-            <main>
-                <h1>Search Echo</h1>
-                <p>Search for something on Echo.</p>
+    function showSearchPage(posts = [], error = "") {
+        let resultsHtml = "";
 
-                <form action="/search" method="GET">
-                    <label for="q">Search term</label>
-                    <input type="text" id="q" name="q" required>
-                    <button type="submit">Search</button>
-                </form>
+        if (error) {
+            resultsHtml = `<p>${escapeSearchHtml(error)}</p>`;
+        } else if (!query) {
+            resultsHtml = "<p>Enter a search term to find posts.</p>";
+        } else if (posts.length === 0) {
+            resultsHtml = "<p>No matching posts found.</p>";
+        } else {
+            resultsHtml = posts.map(post => `
+                <article>
+                    <h2>${escapeSearchHtml(post.title)}</h2>
+                    <p>Posted by ${escapeSearchHtml(post.author)}</p>
+                    <p>${escapeSearchHtml(post.content)}</p>
+                </article>
+            `).join("");
+        }
 
-                <p>Search results for: ${query}</p>
+        res.type("html").send(`
+            <!DOCTYPE html>
+            <html lang="en">
+            <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <title>Search - Echo</title>
+                <link rel="stylesheet" href="/style.css">
+            </head>
+            <body>
+                <main>
+                    <h1>Search Echo</h1>
+                    <p>Find posts on Echo.</p>
 
-                <p><a href="/">Back to Echo</a></p>
-            </main>
-        </body>
-        </html>
-    `);
+                    <form action="/search" method="GET">
+                        <label for="q">Search term</label>
+                        <input
+                            type="text"
+                            id="q"
+                            name="q"
+                            value="${escapeSearchHtml(query)}"
+                            maxlength="120"
+                            required
+                        >
+                        <button type="submit">Search</button>
+                    </form>
+
+                    <!-- INTENTIONALLY VULNERABLE: Unescaped user input -->
+                    <p>Search results for: ${query}</p>
+
+                    <section id="searchResults">
+                        ${resultsHtml}
+                    </section>
+
+                    <p><a href="/">Back to Echo</a></p>
+                </main>
+            </body>
+            </html>
+        `);
+    }
+
+    if (!query) {
+        return showSearchPage();
+    }
+
+    const sql = `
+        SELECT posts.title, posts.content, users.username AS author
+        FROM posts
+        JOIN users ON posts.user_id = users.id
+        WHERE posts.title LIKE ? OR posts.content LIKE ?
+        ORDER BY posts.id DESC
+        LIMIT 50
+    `;
+
+    const searchTerm = `%${query}%`;
+
+    db.all(sql, [searchTerm, searchTerm], (err, posts) => {
+        if (err) {
+            console.error("Search error:", err.message);
+            return showSearchPage([], "Unable to search posts.");
+        }
+
+        showSearchPage(posts);
+    });
 });
 
 app.post("/register", async (req, res) => {
