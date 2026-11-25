@@ -274,8 +274,8 @@ app.get("/me", (req, res) => {
         return res.status(401).send("Please log in.");
     }
 
-    // Retrieve the logged-in user's role
-    const sql = "SELECT id, role FROM users WHERE id = ?";
+    // INTENTIONALLY VULNERABLE: Retrieves unnecessary sensitive data
+    const sql = "SELECT id, role, email, password_hash FROM users WHERE id = ?";
 
     db.get(sql, [req.session.userId], (err, user) => {
         if (err) {
@@ -287,10 +287,13 @@ app.get("/me", (req, res) => {
             return res.status(401).send("Please log in.");
         }
 
+        // INTENTIONALLY VULNERABLE: Exposes sensitive account information
         res.json({
             loggedIn: true,
             userId: user.id,
-            role: user.role
+            role: user.role,
+            email: user.email,
+            password_hash: user.password_hash
         });
     });
 });
