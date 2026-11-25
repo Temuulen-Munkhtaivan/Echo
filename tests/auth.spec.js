@@ -31,3 +31,29 @@ test("Unauthenticated users cannot create posts", async ({ request }) => {
     // Verify the authentication error message
     expect(await postResponse.text()).toContain("Please log in.");
 });
+
+test("Post creation without a CSRF token is rejected", async ({ request }) => {
+    // Create an anonymous session with a CSRF token
+    const tokenResponse = await request.get(
+        "http://localhost:3000/csrf-token"
+    );
+
+    expect(tokenResponse.status()).toBe(200);
+
+    // Attempt to create a post without submitting the token
+    const postResponse = await request.post(
+        "http://localhost:3000/posts",
+        {
+            headers: {
+                Accept: "application/json"
+            },
+            form: {
+                title: "Missing CSRF test",
+                content: "This post should never be created."
+            }
+        }
+    );
+
+    // Verify the CSRF protection rejects the request
+    expect(postResponse.status()).toBe(403);
+});
