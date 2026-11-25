@@ -124,22 +124,54 @@ async function loadPosts() {
             ? await userResponse.json()
             : null;
 
+        // Read the author from the URL
+        const selectedAuthor = new URLSearchParams(
+            window.location.hash.slice(1)
+        ).get("author");
+
+        // Filter posts by the selected author
+        const filteredPosts = selectedAuthor
+            ? posts.filter(post => post.author === selectedAuthor)
+            : posts;
+
+        // Display the current filter safely
+        const authorFilter = document.getElementById("authorFilter");
+        const showAllPosts = document.getElementById("showAllPosts");
+
+        authorFilter.hidden = !selectedAuthor;
+        showAllPosts.hidden = !selectedAuthor;
+
+        authorFilter.textContent = selectedAuthor
+            ? "Showing posts by: " + selectedAuthor
+            : "";
+
+        // Clear previous posts before displaying the filtered list
+        container.replaceChildren();
         message.textContent = "";
 
-        if (posts.length === 0) {
-            message.textContent = "No posts yet.";
+        if (filteredPosts.length === 0) {
+            message.textContent = selectedAuthor
+                ? "No posts found for this user."
+                : "No posts yet.";
             return;
         }
 
         // Display each post
-        posts.forEach(post => {
+        filteredPosts.forEach(post => {
             const article = document.createElement("article");
             const title = document.createElement("h2");
             const author = document.createElement("p");
             const content = document.createElement("p");
 
             title.textContent = post.title;
-            author.textContent = "Posted by " + post.author;
+            author.textContent = "Posted by ";
+
+            const authorLink = document.createElement("a");
+
+            authorLink.href = "#author=" + encodeURIComponent(post.author);
+            authorLink.textContent = post.author;
+
+            author.appendChild(authorLink);
             content.textContent = post.content;
 
             content.style.whiteSpace = "pre-wrap";
@@ -225,3 +257,4 @@ async function loadPosts() {
 }
 
 loadPosts();
+window.addEventListener("hashchange", loadPosts);
