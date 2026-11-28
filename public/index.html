@@ -6,6 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
     <title>Echo</title>
+    <meta name="description" content="Echo is a community blog where users can read posts, search for topics, and share their own stories.">
 
     <link rel="stylesheet" href="style.css">
 </head>
@@ -18,6 +19,7 @@
         <nav>
             <a href="/">Home</a>
             <a href="/posts.html">Posts</a>
+            <a href="/search">Search</a>
 
             <a href="/create-post.html" id="createPostLink" hidden>
                 Create Post
@@ -30,6 +32,8 @@
             <a href="/register.html" id="registerLink" hidden>
                 Register
             </a>
+
+            <span id="usernameDisplay" hidden></span>
 
             <form action="/logout" method="POST" id="logoutForm" hidden>
                 <button type="submit">Log Out</button>

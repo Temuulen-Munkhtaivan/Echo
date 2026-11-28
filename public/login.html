@@ -11,7 +11,7 @@
         <h1>Welcome Back</h1>
         <p>Log in to your Echo account.</p>
 
-        <form action="/login" method="POST">
+        <form id="loginForm" action="/login" method="POST">
             <label for="email">Email</label>
             <input type="email" id="email" name="email"
                 autocomplete="email" required>
@@ -28,7 +28,20 @@
             <a href="/register.html">Register here</a>
         </p>
     </main>
+
+    <!-- Login error popup -->
+    <dialog id="loginErrorDialog" aria-labelledby="loginErrorTitle">
+        <h2 id="loginErrorTitle">Login Failed</h2>
+
+        <p id="loginErrorMessage"></p>
+
+        <button type="button" id="closeLoginError">
+            Try Again
+        </button>
+    </dialog>
+
     <script src="/csrf.js"></script>
     <script src="/form-csrf.js"></script>
+    <script src="/login.js"></script>
 </body>
 </html>

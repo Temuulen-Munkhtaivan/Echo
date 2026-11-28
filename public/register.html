@@ -11,7 +11,7 @@
         <h1>Create an Account</h1>
         <p>Join Echo and start sharing your thoughts.</p>
 
-        <form action="/register" method="POST">
+        <form id="registerForm" action="/register" method="POST">
             <label for="username">Username</label>
             <input type="text" id="username" name="username" required>
 
@@ -27,7 +27,19 @@
 
         <p>Already have an account? <a href="/login.html">Log in</a></p>
     </main>
+
+    <!-- Registration error popup -->
+    <dialog id="registerErrorDialog" aria-labelledby="registerErrorTitle">
+        <h2 id="registerErrorTitle">Registration Failed</h2>
+        <p id="registerErrorMessage"></p>
+
+        <button type="button" id="closeRegisterError">
+            Try Again
+        </button>
+    </dialog>
+
     <script src="/csrf.js"></script>
     <script src="/form-csrf.js"></script>
+    <script src="/register.js"></script>
 </body>
 </html>

@@ -32,6 +32,16 @@
         <p><a href="/posts.html">Back to Posts</a></p>
     </main>
 
+    <!-- Edit Post Error Popup -->
+    <dialog id="editErrorDialog" aria-labelledby="editErrorTitle">
+        <h2 id="editErrorTitle">Couldn't Save Changes</h2>
+
+        <p id="editErrorMessage"></p>
+
+        <button type="button" id="closeEditError">
+            Try Again
+        </button>
+    </dialog>
     <script src="/csrf.js"></script>
     <script src="/edit-post.js"></script>
 </body>

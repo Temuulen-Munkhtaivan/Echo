@@ -1,3 +1,108 @@
+const deleteDialog = document.getElementById("deleteDialog");
+const deleteDialogMessage = document.getElementById("deleteDialogMessage");
+const deleteDialogError = document.getElementById("deleteDialogError");
+
+const cancelDeleteButton = document.getElementById("cancelDelete");
+const confirmDeleteButton = document.getElementById("confirmDelete");
+
+let pendingDeleteForm = null;
+
+function openDeleteDialog(form, message) {
+    pendingDeleteForm = form;
+
+    deleteDialogMessage.textContent = message;
+    deleteDialogError.textContent = "";
+    deleteDialogError.hidden = true;
+
+    deleteDialog.showModal();
+}
+
+cancelDeleteButton.addEventListener("click", () => {
+    deleteDialog.close();
+});
+
+deleteDialog.addEventListener("close", () => {
+    pendingDeleteForm = null;
+});
+
+confirmDeleteButton.addEventListener("click", async () => {
+    if (!pendingDeleteForm) {
+        return;
+    }
+
+    const form = pendingDeleteForm;
+
+    confirmDeleteButton.disabled = true;
+    cancelDeleteButton.disabled = true;
+    confirmDeleteButton.textContent = "Deleting...";
+
+    try {
+        // Get a valid CSRF token
+        const tokenResponse = await fetch("/csrf-token", {
+            credentials: "same-origin",
+            cache: "no-store"
+        });
+
+        if (!tokenResponse.ok) {
+            throw new Error("Security check failed. Please try again.");
+        }
+
+        const tokenData = await tokenResponse.json();
+
+        if (!tokenData.csrfToken) {
+            throw new Error("Security token missing. Please refresh the page.");
+        }
+
+        const formData = new URLSearchParams(new FormData(form));
+        formData.set("_csrf", tokenData.csrfToken);
+
+        // Send the delete request
+        const response = await fetch(form.action, {
+            method: "POST",
+            credentials: "same-origin",
+            headers: {
+                "Content-Type": "application/x-www-form-urlencoded",
+                "Accept": "application/json"
+            },
+            body: formData
+        });
+
+        if (response.ok) {
+            window.location.reload();
+            return;
+        }
+
+        if (response.status === 401) {
+            deleteDialogError.textContent =
+                "Please log in before deleting posts.";
+
+        } else if (response.status === 403) {
+            deleteDialogError.textContent =
+                "Permission denied or security check failed.";
+
+        } else if (response.status === 404) {
+            deleteDialogError.textContent =
+                "Post not found or access denied.";
+
+        } else {
+            deleteDialogError.textContent =
+                "Couldn't delete the post. Please try again.";
+        }
+
+        deleteDialogError.hidden = false;
+
+    } catch (error) {
+        deleteDialogError.textContent =
+            error.message || "Something went wrong.";
+
+        deleteDialogError.hidden = false;
+
+    } finally {
+        confirmDeleteButton.disabled = false;
+        cancelDeleteButton.disabled = false;
+        confirmDeleteButton.textContent = "Delete Post";
+    }
+});
 async function loadPosts() {
     const container = document.getElementById("posts");
     const message = document.getElementById("message");
@@ -19,22 +124,54 @@ async function loadPosts() {
             ? await userResponse.json()
             : null;
 
+        // Read the author from the URL
+        const selectedAuthor = new URLSearchParams(
+            window.location.hash.slice(1)
+        ).get("author");
+
+        // Filter posts by the selected author
+        const filteredPosts = selectedAuthor
+            ? posts.filter(post => post.author === selectedAuthor)
+            : posts;
+
+        // Display the current filter safely
+        const authorFilter = document.getElementById("authorFilter");
+        const showAllPosts = document.getElementById("showAllPosts");
+
+        authorFilter.hidden = !selectedAuthor;
+        showAllPosts.hidden = !selectedAuthor;
+
+        authorFilter.textContent = selectedAuthor
+            ? "Showing posts by: " + selectedAuthor
+            : "";
+
+        // Clear previous posts before displaying the filtered list
+        container.replaceChildren();
         message.textContent = "";
 
-        if (posts.length === 0) {
-            message.textContent = "No posts yet.";
+        if (filteredPosts.length === 0) {
+            message.textContent = selectedAuthor
+                ? "No posts found for this user."
+                : "No posts yet.";
             return;
         }
 
         // Display each post
-        posts.forEach(post => {
+        filteredPosts.forEach(post => {
             const article = document.createElement("article");
             const title = document.createElement("h2");
             const author = document.createElement("p");
             const content = document.createElement("p");
 
             title.textContent = post.title;
-            author.textContent = "Posted by " + post.author;
+            author.textContent = "Posted by ";
+
+            const authorLink = document.createElement("a");
+
+            authorLink.href = "#author=" + encodeURIComponent(post.author);
+            authorLink.textContent = post.author;
+
+            author.appendChild(authorLink);
             content.textContent = post.content;
 
             content.style.whiteSpace = "pre-wrap";
@@ -66,11 +203,14 @@ async function loadPosts() {
 
                 deleteForm.appendChild(deleteButton);
 
-                // Ask for confirmation before deleting
+                // Show Echo confirmation popup
                 deleteForm.addEventListener("submit", (event) => {
-                    if (!confirm("Are you sure you want to delete this post?")) {
-                        event.preventDefault();
-                    }
+                    event.preventDefault();
+
+                    openDeleteDialog(
+                        deleteForm,
+                        "Are you sure you want to delete this post? This cannot be undone."
+                    );
                 });
 
                 article.appendChild(deleteForm);
@@ -94,11 +234,14 @@ async function loadPosts() {
 
                 adminForm.appendChild(removeButton);
 
-                // Confirm moderation action
+                // Show Echo confirmation popup for admins
                 adminForm.addEventListener("submit", (event) => {
-                    if (!confirm("Remove this user's post? This cannot be undone.")) {
-                        event.preventDefault();
-                    }
+                    event.preventDefault();
+
+                    openDeleteDialog(
+                        adminForm,
+                        "Remove this user's post? This cannot be undone."
+                    );
                 });
 
                 article.appendChild(adminForm);
@@ -114,3 +257,4 @@ async function loadPosts() {
 }
 
 loadPosts();
+window.addEventListener("hashchange", loadPosts);

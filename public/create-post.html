@@ -41,6 +41,16 @@
             <a href="/">Back to Echo</a>
         </p>
         </main>
+        <!-- Create Post Error Popup -->
+        <dialog id="postErrorDialog" aria-labelledby="postErrorTitle">
+            <h2 id="postErrorTitle">Couldn't Publish Post</h2>
+
+            <p id="postErrorMessage"></p>
+
+            <button type="button" id="closePostError">
+                Try Again
+            </button>
+        </dialog>
 
     <script src="/csrf.js"></script>
     <script src="/create-post.js"></script>

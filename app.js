@@ -3,6 +3,7 @@ const express = require("express");
 const session = require("express-session");
 const sqlite3 = require("sqlite3");
 const path = require("node:path");
+const fs = require("node:fs");
 const helmet = require("helmet");
 const sqliteStoreModule = require("express-session-sqlite");
 const SQLiteStore = (
@@ -11,16 +12,56 @@ const SQLiteStore = (
 
 const db = require("./database");
 const bcrypt = require("bcrypt");
+// Dummy hash used to reduce login timing differences
+const DUMMY_PASSWORD_HASH = bcrypt.hashSync(
+    "DummyPasswordNotForRealAccounts123!",
+    12
+);
 const app = express();
 app.use(helmet({
     contentSecurityPolicy: {
         directives: {
+            fontSrc: ["'self'"],
+            styleSrc: ["'self'"],
+
             upgradeInsecureRequests:
                 process.env.NODE_ENV === "production" ? [] : null
         }
     },
     strictTransportSecurity: process.env.NODE_ENV === "production"
 }));
+// Security event logging
+const securityLogPath = path.join(__dirname, "logs", "security.log");
+
+fs.mkdirSync(path.dirname(securityLogPath), {
+    recursive: true
+});
+
+function logSecurityEvent(event, req, userId = null, postId = null) {
+    const logEntry = {
+        timestamp: new Date().toISOString(),
+        event: event,
+        userId: Number.isInteger(userId) ? userId : null,
+        ip: typeof req.ip === "string"
+            ? req.ip.slice(0, 64)
+            : "unknown"
+    };
+    // Include the affected post when recording moderation actions
+    if (Number.isSafeInteger(postId) && postId > 0) {
+        logEntry.postId = postId;
+    }
+
+    fs.appendFile(
+        securityLogPath,
+        JSON.stringify(logEntry) + "\n",
+        "utf8",
+        (err) => {
+            if (err) {
+                console.error("Security logging failed:", err.message);
+            }
+        }
+    );
+}
 const { randomBytes, timingSafeEqual } = require("node:crypto");
 const PORT = 3000;
 const { rateLimit } = require("express-rate-limit");
@@ -111,8 +152,16 @@ function formSuccess(req, res, redirectPath, status, message) {
 
     return res.status(status).send(message);
 }
+// Limit repeated registration attempts
+const registrationLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    limit: 5,
+    standardHeaders: "draft-8",
+    legacyHeaders: false,
+    message: "Too many registration attempts. Please try again in 15 minutes."
+});
 
-app.post("/register", async (req, res) => {
+app.post("/register", registrationLimiter, async (req, res) => {
     const { username, email, password } = req.body || {};
 
     // Check the submitted information
@@ -176,7 +225,20 @@ const loginLimiter = rateLimit({
     skipSuccessfulRequests: true,
     standardHeaders: "draft-8",
     legacyHeaders: false,
-    message: "Too many login attempts. Please try again in 15 minutes."
+
+    // Monitor excessive login attempts
+    handler: (req, res) => {
+        logSecurityEvent("LOGIN_RATE_LIMITED", req);
+
+        console.warn(
+            "[SECURITY ALERT] Excessive login attempts from:",
+            req.ip
+        );
+
+        return res.status(429).send(
+            "Too many login attempts. Please try again in 15 minutes."
+        );
+    }
 });
 app.post("/login", loginLimiter, (req, res) => {
     const { email, password } = req.body || {};
@@ -189,6 +251,7 @@ app.post("/login", loginLimiter, (req, res) => {
         password.length < 12 ||
         Buffer.byteLength(password, "utf8") > 72
     ) {
+        logSecurityEvent("LOGIN_FAILED", req);
         return res.status(401).send("Invalid email or password.");
     }
 
@@ -203,20 +266,24 @@ app.post("/login", loginLimiter, (req, res) => {
             return res.status(500).send("Login failed.");
         }
 
-        if (!user) {
-            return res.status(401).send("Invalid email or password.");
-        }
-
         try {
-            // Compare the password with the stored hash
+            // Use the real hash or a dummy hash if the account doesn't exist
+            const hashToCheck = user
+                ? user.password_hash
+                : DUMMY_PASSWORD_HASH;
+
             const passwordMatches = await bcrypt.compare(
                 password,
-                user.password_hash
+                hashToCheck
             );
 
-            if (!passwordMatches) {
+            // Always return the same message for invalid credentials
+            if (!user || !passwordMatches) {
+                logSecurityEvent("LOGIN_FAILED", req);
                 return res.status(401).send("Invalid email or password.");
             }
+
+            
 
             // Create a fresh session after successful login
             req.session.regenerate((err) => {
@@ -233,6 +300,8 @@ app.post("/login", loginLimiter, (req, res) => {
                         console.error("Session save error:", err.message);
                         return res.status(500).send("Login failed.");
                     }
+
+                    logSecurityEvent("LOGIN_SUCCESS", req, user.id);
 
                     formSuccess(req, res, "/", 200, "Login successful!");
                 });
@@ -251,7 +320,7 @@ app.get("/me", (req, res) => {
     }
 
     // Retrieve the logged-in user's role
-    const sql = "SELECT id, role FROM users WHERE id = ?";
+    const sql = "SELECT id, username, role FROM users WHERE id = ?";
 
     db.get(sql, [req.session.userId], (err, user) => {
         if (err) {
@@ -266,6 +335,7 @@ app.get("/me", (req, res) => {
         res.json({
             loggedIn: true,
             userId: user.id,
+            username: user.username,
             role: user.role
         });
     });
@@ -285,7 +355,10 @@ app.post("/logout", (req, res) => {
 
 // Check whether the logged-in user is an administrator
 function requireAdmin(req, res, next) {
+    // User is not logged in
     if (!req.session.userId) {
+        logSecurityEvent("ADMIN_ACCESS_DENIED", req);
+
         return res.status(401).send("Please log in.");
     }
 
@@ -294,10 +367,24 @@ function requireAdmin(req, res, next) {
     db.get(sql, [req.session.userId], (err, user) => {
         if (err) {
             console.error("Authorization error:", err.message);
+
+            logSecurityEvent(
+                "ADMIN_PERMISSION_CHECK_ERROR",
+                req,
+                req.session.userId
+            );
+
             return res.status(500).send("Unable to verify permissions.");
         }
 
+        // Logged-in user does not have administrator privileges
         if (!user || user.role !== "admin") {
+            logSecurityEvent(
+                "ADMIN_ACCESS_DENIED",
+                req,
+                req.session.userId
+            );
+
             return res.status(403).send("Access denied.");
         }
 
@@ -387,6 +474,113 @@ app.get("/posts", (req, res) => {
         }
 
         res.json(posts);
+    });
+});
+// Escape HTML to prevent XSS
+function escapeSearchHtml(value) {
+    return String(value ?? "").replace(/[&<>"']/g, (char) => {
+        const characters = {
+            "&": "&amp;",
+            "<": "&lt;",
+            ">": "&gt;",
+            '"': "&quot;",
+            "'": "&#39;"
+        };
+
+        return characters[char];
+    });
+}
+
+// Search published posts
+app.get("/search", (req, res) => {
+    const query = typeof req.query.q === "string"
+        ? req.query.q.trim().slice(0, 120)
+        : "";
+
+    function showSearchPage(posts = [], error = "") {
+        const safeQuery = escapeSearchHtml(query);
+
+        let resultsHtml = "";
+
+        if (error) {
+            resultsHtml = `<p>${escapeSearchHtml(error)}</p>`;
+        } else if (!query) {
+            resultsHtml = "<p>Enter a search term to find posts.</p>";
+        } else if (posts.length === 0) {
+            resultsHtml = "<p>No matching posts found.</p>";
+        } else {
+            resultsHtml = posts.map(post => `
+                <article>
+                    <h2>${escapeSearchHtml(post.title)}</h2>
+                    <p>Posted by ${escapeSearchHtml(post.author)}</p>
+                    <p>${escapeSearchHtml(post.content)}</p>
+                </article>
+            `).join("");
+        }
+
+        res.type("html").send(`
+            <!DOCTYPE html>
+            <html lang="en">
+            <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <title>Search - Echo</title>
+                <link rel="stylesheet" href="/style.css">
+            </head>
+            <body>
+                <main>
+                    <h1>Search Echo</h1>
+                    <p>Find posts on Echo.</p>
+
+                    <form action="/search" method="GET">
+                        <label for="q">Search term</label>
+                        <input
+                            type="text"
+                            id="q"
+                            name="q"
+                            value="${safeQuery}"
+                            maxlength="120"
+                            required
+                        >
+                        <button type="submit">Search</button>
+                    </form>
+
+                    <p>Search results for: ${safeQuery}</p>
+
+                    <section id="searchResults">
+                        ${resultsHtml}
+                    </section>
+
+                    <p><a href="/">Back to Echo</a></p>
+                </main>
+            </body>
+            </html>
+        `);
+    }
+
+    if (!query) {
+        return showSearchPage();
+    }
+
+    // Parameterized query prevents SQL Injection
+    const sql = `
+        SELECT posts.title, posts.content, users.username AS author
+        FROM posts
+        JOIN users ON posts.user_id = users.id
+        WHERE posts.title LIKE ? OR posts.content LIKE ?
+        ORDER BY posts.id DESC
+        LIMIT 50
+    `;
+
+    const searchTerm = `%${query}%`;
+
+    db.all(sql, [searchTerm, searchTerm], (err, posts) => {
+        if (err) {
+            console.error("Search error:", err.message);
+            return showSearchPage([], "Unable to search posts.");
+        }
+
+        showSearchPage(posts);
     });
 });
 
@@ -499,6 +693,14 @@ app.post("/admin/posts/:id/delete", requireAdmin, (req, res) => {
             return res.status(404).send("Post not found.");
         }
 
+        // Record the successful administrator action
+        logSecurityEvent(
+            "ADMIN_POST_DELETED",
+            req,
+            req.session.userId,
+            postId
+        );
+
         res.redirect("/posts.html");
     });
 });
@@ -525,6 +727,6 @@ app.get("/csrf-token", (req, res) => {
     });
 });
 
-app.listen(PORT, () => {
+app.listen(PORT, "127.0.0.1", () => {
     console.log(`Echo is running at http://localhost:${PORT}`);
 });
